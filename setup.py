@@ -11,7 +11,7 @@ setup(
     name='wedo',
     version='1.1.0',
     packages=find_packages(),
-    install_requires=['pyusb'],
+    install_requires=['cython', 'hidapi'],
     zip_safe=False,
     include_package_data=True,
     author="Guillaume BINET",

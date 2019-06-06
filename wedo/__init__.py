@@ -6,33 +6,21 @@ from wedo.tilt import process_tilt
 from wedo.tilt import FLAT, TILT_BACK, TILT_FORWARD, TILT_LEFT, TILT_RIGHT
 
 import os
-import usb.core
-import logging
+import hid
 
-logger = logging.getLogger('wedo')
-
-ID_VENDOR          = 0x0694
-ID_PRODUCT         = 0x0003
-WEDO_INTERFACE     = 0
+ID_VENDOR = 0x0694
+ID_PRODUCT = 0x0003
+WEDO_INTERFACE = 0
 WEDO_CONFIGURATION = 1
 
-UNAVAILABLE = None
+UNAVAILABLE = 0
 TILTSENSOR = (38, 39, 40)
 DISTANCESENSOR = (176, 177, 178, 179, 180)
 MOTOR = (0, 1, 2, 3, 99, 100, 101, 102, 203, 204, 238, 239, 240)
 
 # limit the visibility to simplify the usage
-__all__ = ["scan_for_devices", "WeDo", "FLAT", "TILT_BACK", "TILT_FORWARD", "TILT_LEFT", "TILT_RIGHT"]
-
-def scan_for_devices():
-    """ Find all available devices """
-    devices = []
-    try:
-        for dev in usb.core.find(find_all=True, idVendor=ID_VENDOR, idProduct=ID_PRODUCT):
-            devices.append(dev)
-    except usb.core.USBError as e:
-        logger.error("Could not find a connected WeDo device: %s" % str(e))
-    return devices
+__all__ = ["scan_for_devices", "WeDo", "FLAT",
+    "TILT_BACK", "TILT_FORWARD", "TILT_LEFT", "TILT_RIGHT"]
 
 class WeDo(object):
     """
@@ -64,37 +52,20 @@ class WeDo(object):
         self.number = 0
         self.dev = device
         if self.dev is None:
-            devices = scan_for_devices()
-            if not(devices):
-                raise OSError("Could not find a connected WeDo device")
-            self.dev = devices[0]
-        self.init_device()
+            self.dev = hid.device()
+            self.dev.open(ID_VENDOR, ID_PRODUCT)
+            self.dev.set_nonblocking(1)
         self.valMotorA = 0
         self.valMotorB = 0
-        self.init_device()
-
-    def init_device(self):
-        """
-        Reinit device associated with the WeDo instance
-        """
-        try:
-            if os.name != 'nt' and self.dev.is_kernel_driver_active(WEDO_INTERFACE):
-                try:
-                    self.dev.detach_kernel_driver(WEDO_INTERFACE)
-                except usb.core.USBError as e:
-                    logger.error("Could not detatch kernel driver: %s" % str(e))
-            self.dev.set_configuration(WEDO_CONFIGURATION)
-            self.endpoint = self.dev[0][(0, 0)][0]
-        except usb.core.USBError as e:
-            logger.error("Could not init device: %s" % str(e))
 
     def getRawData(self):
         """Read 64 bytes from the WeDo's endpoint, but only
         return the last eight."""
         try:
-            return self.endpoint.read(64)[-8:]
-        except usb.core.USBError as e:
-            logger.exception("Could not read from WeDo device")
+            self.dev.write([0, 63, 35, 35] + [0] * 61)
+            return self.dev.read(64)
+        except:
+            print "Could not read from WeDo device"
         return None
 
     def setMotors(self):
@@ -103,12 +74,14 @@ class WeDo(object):
         and 100, positive or negative. Magic numbers used for
         the ctrl_transfer derived from sniffing USB coms.
         """
-        data = [64, processMotorValues(self.valMotorA) & 0xFF, processMotorValues(self.valMotorB) & 0xFF,
-                0x00, 0x00, 0x00, 0x00, 0x00]
+        data = [0x0, 0x40,
+                    processMotorValues(self.valMotorA) & 0xFF,
+                    processMotorValues(self.valMotorB) & 0xFF,
+                    0x00, 0x00, 0x00, 0x00, 0x00]
         try:
-            self.dev.ctrl_transfer(bmRequestType=0x21, bRequest=0x09, wValue=0x0200, wIndex=0, data_or_wLength=data)
-        except usb.core.USBError as e:
-            logger.exception("Could not write to driver")
+            self.dev.write(data)
+        except:
+            print "Could not write to driver"
 
     def getData(self):
         """
@@ -184,7 +157,7 @@ class WeDo(object):
         """ Sets the speed/force of the motor A, expects a value between -100 and 100
         """
         if value > 100 or value < -100:
-            raise ValueError("A motor can only be between -100 and 100")
+            print "A motor can only be between -100 and 100"
         self.valMotorA = value
         self.setMotors()
 
@@ -193,7 +166,7 @@ class WeDo(object):
         """ Sets the speed/force of the motor B, expects a value between -100 and 100
         """
         if value > 100 or value < -100:
-            raise ValueError("A motor can only be between -100 and 100")
+            print "A motor can only be between -100 and 100"
         self.valMotorB = value
         self.setMotors()
 

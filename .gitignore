@@ -1,3 +1,4 @@
 *pyc
 dist
 wedo.egg-info
+/build
