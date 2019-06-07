@@ -54,7 +54,7 @@ class WeDo(object):
         if self.dev is None:
             self.dev = hid.device()
             self.dev.open(ID_VENDOR, ID_PRODUCT)
-            self.dev.set_nonblocking(1)
+            #self.dev.set_nonblocking(1)
         self.valMotorA = 0
         self.valMotorB = 0
 
@@ -62,7 +62,7 @@ class WeDo(object):
         """Read 64 bytes from the WeDo's endpoint, but only
         return the last eight."""
         try:
-            self.dev.write([0, 63, 35, 35] + [0] * 61)
+            self.dev.write([0x0, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])
             return self.dev.read(64)
         except:
             print "Could not read from WeDo device"
