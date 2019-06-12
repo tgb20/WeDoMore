@@ -54,7 +54,7 @@ class WeDo(object):
         if self.dev is None:
             self.dev = hid.device()
             self.dev.open(ID_VENDOR, ID_PRODUCT)
-            #self.dev.set_nonblocking(1)
+            self.dev.set_nonblocking(1)
         self.valMotorA = 0
         self.valMotorB = 0
 
